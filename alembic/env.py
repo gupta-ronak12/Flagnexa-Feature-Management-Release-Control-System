@@ -28,6 +28,9 @@ from app.models.environment import Environment
 from app.models.environment_override import EnvironmentOverride
 from app.models.audit_log import AuditLog
 from app.models.user import User
+from app.models.user_group import UserGroup
+from app.models.targeting_rule import TargetingRule
+from app.models.user_group_membership import UserGroupMembership
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

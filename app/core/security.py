@@ -4,8 +4,7 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException, status
 
 from app.database.database import SessionLocal
 from app.models.user import User
@@ -19,11 +18,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login"
-)
-
-
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
@@ -34,8 +28,14 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+def verify_password(
+    password: str,
+    password_hash: str
+) -> bool:
+    return pwd_context.verify(
+        password,
+        password_hash
+    )
 
 
 def create_access_token(
@@ -61,9 +61,7 @@ def create_access_token(
     )
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme)
-):
+def get_current_user(token: str):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

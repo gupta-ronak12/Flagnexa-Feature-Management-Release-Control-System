@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import SessionLocal
 from app.models.environment import Environment
+from app.models.environment_override import EnvironmentOverride
 from app.schemas.environment import (
     EnvironmentCreate,
     EnvironmentUpdate,
@@ -129,6 +130,12 @@ def delete_environment(
             detail="Environment not found"
         )
 
+    # Delete related environment overrides first
+    db.query(EnvironmentOverride).filter(
+        EnvironmentOverride.environment_id == environment_id
+    ).delete(synchronize_session=False)
+
+    # Delete the environment
     db.delete(environment)
     db.commit()
 

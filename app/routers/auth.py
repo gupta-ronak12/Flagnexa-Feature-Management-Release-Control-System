@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.database import SessionLocal
@@ -6,7 +8,8 @@ from app.models.user import User
 from app.core.security import (
     hash_password,
     verify_password,
-    create_access_token
+    create_access_token,
+    get_current_user
 )
 
 
@@ -14,6 +17,9 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+
+security = HTTPBearer()
 
 
 def get_db():
@@ -24,28 +30,26 @@ def get_db():
         db.close()
 
 
+# Request models
+class SignupRequest(BaseModel):
+    full_name: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 # SIGNUP
 @router.post("/signup")
 def signup(
-    full_name: str = Form(
-        ...,
-        description="Enter your full name",
-        examples=["full_name"]
-    ),
-    email: str = Form(
-        ...,
-        description="Enter your email",
-        examples=["email"]
-    ),
-    password: str = Form(
-        ...,
-        description="Create your password",
-        examples=["password"]
-    ),
+    data: SignupRequest,
     db: Session = Depends(get_db)
 ):
     existing_user = db.query(User).filter(
-        User.email == email
+        User.email == data.email
     ).first()
 
     if existing_user:
@@ -55,9 +59,9 @@ def signup(
         )
 
     user = User(
-        full_name=full_name,
-        email=email,
-        password_hash=hash_password(password),
+        full_name=data.full_name,
+        email=data.email,
+        password_hash=hash_password(data.password),
         is_active=True
     )
 
@@ -75,20 +79,11 @@ def signup(
 # LOGIN
 @router.post("/login")
 def login(
-    email: str = Form(
-        ...,
-        description="Enter your registered email",
-        examples=["email"]
-    ),
-    password: str = Form(
-        ...,
-        description="Enter your password",
-        examples=["password"]
-    ),
+    data: LoginRequest,
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(
-        User.email == email
+        User.email == data.email
     ).first()
 
     if not user:
@@ -98,7 +93,7 @@ def login(
         )
 
     if not verify_password(
-        password,
+        data.password,
         user.password_hash
     ):
         raise HTTPException(
@@ -115,3 +110,24 @@ def login(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+
+# HOME
+@router.get("/home")
+def home(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    try:
+        user = get_current_user(credentials.credentials)
+
+        return {
+            "message": f"Welcome {user.full_name}",
+            "user_id": user.id,
+            "email": user.email
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
